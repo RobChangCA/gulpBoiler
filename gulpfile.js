@@ -1,42 +1,49 @@
-const gulp = require('gulp');
-const sass = require('gulp-sass');
-const concat = require('gulp-concat');
-const babel = require('gulp-babel');
-const autoprefixer = require('gulp-autoprefixer');
-const browserSync = require('browser-sync').create();
-const reload = browserSync.reload;
+const gulp = require("gulp"),
+    sass = require("gulp-sass"),
+    postcss = require("gulp-postcss"),
+    autoprefixer = require("autoprefixer"),
+    cssnano = require("cssnano"),
+    sourcemaps = require("gulp-sourcemaps"),
+    browserSync = require("browser-sync").create(),
+    concat = require("gulp-concat"),
+    minify = require("gulp-minify"),
+    babel = require('gulp-babel');
 
-//a task to compile our sass
-gulp.task('styles', () => {
-  return gulp.src('./dev/styles/**/*.scss')
-    .pipe(sass().on('error', sass.logError))
-    .pipe(autoprefixer('last 2 version', 'safari 5', 'ie 8', 'ie 9', 'opera 12.1'))
-    .pipe(concat('style.css'))
-    .pipe(gulp.dest('./public/styles'))
-    .pipe(reload({stream: true}));
-});
+function style() {
+    return gulp.src('./dev/styles/**/*.scss')
+        .pipe(sourcemaps.init())
+        .pipe(sass())
+        .on("error", sass.logError)
+        .pipe(postcss([autoprefixer(), cssnano()]))
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest('./public/styles'))
+        .pipe(browserSync.stream());
+}
 
-//a task to compile our javascript
-gulp.task('scripts', () => {
-  return gulp.src('./dev/scripts/main.js')
+function script(){
+    return gulp.src('./dev/scripts/**/*.js')
+    .pipe(sourcemaps.init())
     .pipe(babel({
-      presets: ['es2015']
+        presets: ['@babel/preset-env']
     }))
+    .pipe(concat("index.js"))
+    .pipe(minify({noSource: true}))
+    .pipe(sourcemaps.write('.'))
     .pipe(gulp.dest('./public/scripts'))
-    .pipe(reload({stream: true}));
-});
+    .pipe(browserSync.stream());
+}
 
-// a task to watch all other tasks
-gulp.task('watch', function() {
-  gulp.watch('./dev/scripts/**/*.js', ['scripts']);
-  gulp.watch('./dev/styles/**/*.scss', ['styles']);
-  gulp.watch('*.html', reload);
-});
-//browser sync
-gulp.task('browser-sync', () => {
-  browserSync.init({
-    server: '.'  
-  })
-});
+function watch() {
+    browserSync.init({
+        server: {
+            baseDir: './'
+        }
+    });
+    gulp.watch('./dev/styles/**/*.scss', style);
+    gulp.watch('./dev/scripts/**/*.js', script);
+    gulp.watch('./*.html').on('change', browserSync.reload);
+}
 
-gulp.task('default', ['styles', 'scripts', 'watch', 'browser-sync'])
+exports.style = style; 
+exports.script = script;
+exports.watch = watch;
